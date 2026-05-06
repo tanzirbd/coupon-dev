@@ -1,0 +1,47 @@
+# Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Spring Boot
+*.pid
+spring-shell.log
+application-*.yml.bak
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+*.swp
+*.swo
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Secrets — never commit these
+*.env
+.env.local
+.env.production
+secrets/
+credentials/
+
+# Logs
+*.log
+logs/
+
+# H2 database files
+*.db
+*.mv.db
+*.trace.db

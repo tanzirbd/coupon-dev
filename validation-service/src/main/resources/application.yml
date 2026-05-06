@@ -1,0 +1,53 @@
+server:
+  port: 8083
+spring:
+  application:
+    name: validation-service
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true   # Required: tells Feign to use the fallback= class on failure
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka:eureka-secret@${EUREKA_HOST:localhost}:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+# Resilience4j circuit breaker for Coupon Service calls
+resilience4j:
+  circuitbreaker:
+    instances:
+      coupon-service:
+        register-health-indicator: true
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10000
+        permitted-number-of-calls-in-half-open-state: 3
+  timelimiter:
+    instances:
+      coupon-service:
+        timeout-duration: 2s
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers

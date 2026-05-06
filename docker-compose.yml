@@ -1,0 +1,239 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  Scalable Coupon Management Platform — Docker Compose
+#  Capstone Project MSIT 5910 — Md Tanzir Altaf (C110219404)
+#
+#  Services:
+#    Infrastructure : postgres, redis, zookeeper, kafka
+#    Platform       : eureka-server, api-gateway
+#    Microservices  : user-service, coupon-service, validation-service,
+#                     notification-service, analytics-service
+# ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  coupon-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  # NOTE: kafka_data intentionally omitted — Kafka uses a tmpfs-style anonymous
+  # volume in dev so there is no stale meta.properties to cause cluster ID conflicts.
+
+# ──────────────── Shared environment variables ────────────────────────────────
+x-common-env: &common-env
+  EUREKA_HOST: eureka-server
+  JWT_SECRET: coupon-platform-secret-key-must-be-at-least-256-bits-long-for-hs256
+  KAFKA_BOOTSTRAP: kafka:9092
+  REDIS_HOST: redis
+  DB_USER: postgres
+  DB_PASS: postgres123
+
+services:
+
+  # ─── Infrastructure ──────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: coupon-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_MULTIPLE_DATABASES: user_db,coupon_db,validation_db,analytics_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init.sh
+    ports:
+      - "5432:5432"
+    networks:
+      - coupon-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: coupon-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - coupon-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: coupon-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - coupon-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: coupon-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    # No named volume — ephemeral storage prevents cluster ID conflicts on restart
+    ports:
+      - "29092:29092"
+    networks:
+      - coupon-net
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "kafka:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ─── Platform Services ────────────────────────────────────────────────────────
+
+  eureka-server:
+    build:
+      context: .
+      dockerfile: eureka-server/Dockerfile
+    container_name: coupon-eureka
+    ports:
+      - "8761:8761"
+    environment:
+      <<: *common-env
+    networks:
+      - coupon-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8761/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: coupon-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      <<: *common-env
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - coupon-net
+
+  # ─── Microservices ────────────────────────────────────────────────────────────
+
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    container_name: coupon-user-svc
+    ports:
+      - "8081:8081"
+    environment:
+      <<: *common-env
+      DB_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - coupon-net
+
+  coupon-service:
+    build:
+      context: .
+      dockerfile: coupon-service/Dockerfile
+    container_name: coupon-coupon-svc
+    ports:
+      - "8082:8082"
+    environment:
+      <<: *common-env
+      DB_HOST: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - coupon-net
+
+  validation-service:
+    build:
+      context: .
+      dockerfile: validation-service/Dockerfile
+    # NOTE: No container_name here — Docker Compose auto-names replicas.
+    # For local dev we run a single instance; set VALIDATION_REPLICAS=2 in prod.
+    ports:
+      - "8083:8083"
+    environment:
+      <<: *common-env
+    depends_on:
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      coupon-service:
+        condition: service_started
+    networks:
+      - coupon-net
+
+  # ─── Optional / Placeholder Services ─────────────────────────────────────────
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    container_name: coupon-notification-svc
+    ports:
+      - "8084:8084"
+    environment:
+      <<: *common-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - coupon-net
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: analytics-service/Dockerfile
+    container_name: coupon-analytics-svc
+    ports:
+      - "8085:8085"
+    environment:
+      <<: *common-env
+      DB_HOST: postgres
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - coupon-net
