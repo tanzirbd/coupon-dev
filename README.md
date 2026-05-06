@@ -282,12 +282,3 @@ coupon_dev/
 ```
 
 ---
-
-## 🎥 Video Demo Script (5–7 min)
-
-1. **Introduction (0:00–1:00)** — Purpose, 6 microservices, target users
-2. **Dev Environment (1:00–2:30)** — IDE, Docker Compose startup, Eureka dashboard
-3. **Feature 1 – Auth (2:30–4:00)** — Register, login, show JWT, Swagger UI
-4. **Feature 2 – Coupon CRUD (4:00–5:30)** — Create coupon, list, validate, Kafka topic
-5. **Architecture Alignment (5:30–6:30)** — How NFRs drove design (Redis cache, circuit breaker)
-6. **Wrap-up (6:30–7:00)** — Future work: load test, Jaeger tracing, Drools rule engine
