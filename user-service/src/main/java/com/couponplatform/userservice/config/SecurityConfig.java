@@ -46,8 +46,14 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/actuator/health").permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers(
+                                "/swagger-ui.html",          // ← the entry redirect URL
+                                "/swagger-ui/**",            // ← the actual UI files
+                                "/v3/api-docs/**",           // ← OpenAPI JSON spec
+                                "/v3/api-docs.yaml",
+                                "/webjars/**"                // ← Swagger static assets
+                        ).permitAll()
                         .requestMatchers("/api/users/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

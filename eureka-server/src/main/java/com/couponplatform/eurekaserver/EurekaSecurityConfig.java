@@ -2,22 +2,18 @@ package com.couponplatform.eurekaserver;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Eureka Server Security Configuration.
+ * REQUIRED: spring-cloud-starter-netflix-eureka-server pulls Spring Security
+ * in transitively. Without this class, Spring Boot's DEFAULT security applies:
+ *   - random password generated on startup
+ *   - ALL endpoints require HTTP Basic Auth
+ *   - Eureka client registrations (POST /eureka/apps/**) get 401
  *
- * Problem without this class:
- *   Spring Boot auto-configures CSRF protection on ALL POST endpoints.
- *   Eureka clients register/heartbeat via POST → CSRF filter blocks them → 401/403.
- *   Services cannot register even with correct credentials in the defaultZone URL.
- *
- * Fix:
- *   Disable CSRF for /eureka/** endpoints only so Eureka clients can POST freely,
- *   while still requiring HTTP Basic auth for the Eureka dashboard UI.
+ * This config disables all auth and CSRF so clients can register freely.
  */
 @Configuration
 @EnableWebSecurity
@@ -26,20 +22,8 @@ public class EurekaSecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Disable CSRF for Eureka endpoints — clients cannot send CSRF tokens
-            .csrf(csrf -> csrf.ignoringRequestMatchers(
-                    "/eureka/**",
-                    "/actuator/**"
-            ))
-            // Allow Eureka dashboard and actuator without auth,
-            // everything else requires Basic auth
-            .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/actuator/**").permitAll()
-                    .anyRequest().authenticated()
-            )
-            // Use HTTP Basic so the username:password in defaultZone URL works
-            .httpBasic(Customizer.withDefaults());
-
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
         return http.build();
     }
 }
