@@ -1,13 +1,13 @@
-# ─────────────────────────────────────────────────────────────────────────────
-#  Scalable Coupon Management Platform — Docker Compose
-#  Capstone Project MSIT 5910 — Md Tanzir Altaf (C110219404)
+# -----------------------------------------------------------------------------
+#  Scalable Coupon Management Platform - Docker Compose
+#  Capstone Project MSIT 5910 - Md Tanzir Altaf (C110219404)
 #
 #  Services:
 #    Infrastructure : postgres, redis, zookeeper, kafka
 #    Platform       : eureka-server, api-gateway
 #    Microservices  : user-service, coupon-service, validation-service,
 #                     notification-service, analytics-service
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 networks:
   coupon-net:
@@ -16,10 +16,10 @@ networks:
 volumes:
   postgres_data:
   redis_data:
-  # NOTE: kafka_data intentionally omitted — Kafka uses a tmpfs-style anonymous
+  # NOTE: kafka_data intentionally omitted - Kafka uses a tmpfs-style anonymous
   # volume in dev so there is no stale meta.properties to cause cluster ID conflicts.
 
-# ──────────────── Shared environment variables ────────────────────────────────
+# ---------------- Shared environment variables --------------------------------
 x-common-env: &common-env
   EUREKA_HOST: eureka-server
   JWT_SECRET: coupon-platform-secret-key-must-be-at-least-256-bits-long-for-hs256
@@ -30,7 +30,7 @@ x-common-env: &common-env
 
 services:
 
-  # ─── Infrastructure ──────────────────────────────────────────────────────────
+  # --- Infrastructure ----------------------------------------------------------
 
   postgres:
     image: postgres:16-alpine
@@ -90,7 +90,7 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-    # No named volume — ephemeral storage prevents cluster ID conflicts on restart
+    # No named volume - ephemeral storage prevents cluster ID conflicts on restart
     ports:
       - "29092:29092"
     networks:
@@ -101,7 +101,7 @@ services:
       timeout: 10s
       retries: 5
 
-  # ─── Platform Services ────────────────────────────────────────────────────────
+  # --- Platform Services --------------------------------------------------------
 
   eureka-server:
     build:
@@ -137,7 +137,7 @@ services:
     networks:
       - coupon-net
 
-  # ─── Microservices ────────────────────────────────────────────────────────────
+  # --- Microservices ------------------------------------------------------------
 
   user-service:
     build:
@@ -196,10 +196,11 @@ services:
         condition: service_healthy
       coupon-service:
         condition: service_started
+    restart: on-failure
     networks:
       - coupon-net
 
-  # ─── Optional / Placeholder Services ─────────────────────────────────────────
+  # --- Optional / Placeholder Services -----------------------------------------
 
   notification-service:
     build:

@@ -1,5 +1,6 @@
 package com.couponplatform.validationservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -10,11 +11,12 @@ import java.time.LocalDateTime;
 
 public class ValidationDtos {
 
-    // ──────────────── Shared CouponData (mirrored from Coupon Service) ────────────────
+    // ---------------- Shared CouponData (mirrored from Coupon Service) ----------------
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class CouponData {
         private Long id;
         private String code;
@@ -30,7 +32,7 @@ public class ValidationDtos {
         private String status;
     }
 
-    // ──────────────── Request ────────────────────────────────────────────────
+    // ---------------- Request ------------------------------------------------
     @Data
     @Builder
     @NoArgsConstructor
@@ -47,7 +49,7 @@ public class ValidationDtos {
         private String userId;
     }
 
-    // ──────────────── Response ────────────────────────────────────────────────
+    // ---------------- Response ------------------------------------------------
     @Data
     @Builder
     @NoArgsConstructor

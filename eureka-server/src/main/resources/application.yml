@@ -4,19 +4,15 @@ server:
 spring:
   application:
     name: eureka-server
-  security:
-    user:
-      name: eureka
-      password: eureka-secret
 
 eureka:
   instance:
-    hostname: localhost
+    hostname: ${EUREKA_HOST:eureka-server}
   client:
     register-with-eureka: false
     fetch-registry: false
     service-url:
-      defaultZone: http://eureka:eureka-secret@localhost:8761/eureka/
+      defaultZone: http://${EUREKA_HOST:eureka-server}:8761/eureka/
   server:
     enable-self-preservation: false
     eviction-interval-timer-in-ms: 5000
