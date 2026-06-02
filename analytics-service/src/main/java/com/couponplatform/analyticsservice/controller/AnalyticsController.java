@@ -31,10 +31,13 @@ public class AnalyticsController {
     @GetMapping("/summary")
     @Operation(summary = "Redemption summary", description = "Returns total redemptions and discount granted for a date range")
     public ResponseEntity<Map<String, Object>> getSummary(
-            @RequestParam(defaultValue = "#{T(java.time.LocalDateTime).now().minusDays(30)}")
+            @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam(defaultValue = "#{T(java.time.LocalDateTime).now()}")
+            @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        // Default: last 30 days (SpEL not supported in @RequestParam defaultValue)
+        if (from == null) from = LocalDateTime.now().minusDays(30);
+        if (to == null) to = LocalDateTime.now();
         return ResponseEntity.ok(analyticsService.getSummary(from, to));
     }
 
@@ -45,10 +48,13 @@ public class AnalyticsController {
     @GetMapping("/top-coupons")
     @Operation(summary = "Top coupons", description = "Ranks coupons by redemption count for a given period")
     public ResponseEntity<List<Map<String, Object>>> getTopCoupons(
-            @RequestParam(defaultValue = "#{T(java.time.LocalDateTime).now().minusDays(30)}")
+            @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam(defaultValue = "#{T(java.time.LocalDateTime).now()}")
+            @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        // Default: last 30 days (SpEL not supported in @RequestParam defaultValue)
+        if (from == null) from = LocalDateTime.now().minusDays(30);
+        if (to == null) to = LocalDateTime.now();
         return ResponseEntity.ok(analyticsService.getTopCoupons(from, to));
     }
 

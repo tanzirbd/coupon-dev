@@ -78,6 +78,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Spring Boot Test (provides @WebMvcTest, MockMvc, @MockBean, @SpringBootTest) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <!-- JUnit 5 -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
