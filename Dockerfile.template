@@ -1,30 +1,22 @@
-# Multi-stage Dockerfile for Spring Boot microservices
-# Stage 1: Build
+# Template Dockerfile for reference only.
+# Each service has its own Dockerfile that handles multi-module Maven builds.
+# The CI/CD pipeline uses the per-service Dockerfile with context set to the
+# project root (context: .) so the parent pom.xml is always accessible.
+#
+# See each <service>/Dockerfile for the actual build definition.
+
 FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /app
-COPY pom.xml .
-# Download dependencies first (layer caching)
-RUN mvn dependency:go-offline -B
-COPY src ./src
-RUN mvn clean package -DskipTests -B
+# Copy entire project (parent pom.xml + all modules)
+COPY . .
+# Delete stale compiled artifacts
+RUN find . -name target -type d -prune -exec rm -rf {} + 2>/dev/null || true
+# Build only this module and its Maven dependencies (-am = also-make)
+RUN mvn -pl SERVICE_NAME -am clean package -Dmaven.test.skip=true -B
 
-# Stage 2: Runtime
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-
-# Security: non-root user
 RUN addgroup -S spring && adduser -S spring -G spring
 USER spring:spring
-
-# Copy JAR from build stage
-COPY --from=build /app/target/*.jar app.jar
-
-# JVM tuning for container environments (NFR: Performance)
-ENTRYPOINT ["java", \
-  "-XX:+UseContainerSupport", \
-  "-XX:MaxRAMPercentage=75.0", \
-  "-XX:+UseG1GC", \
-  "-Djava.security.egd=file:/dev/./urandom", \
-  "-jar", "app.jar"]
-
-EXPOSE 8080
+COPY --from=build /app/SERVICE_NAME/target/*.jar app.jar
+ENTRYPOINT ["java",   "-XX:+UseContainerSupport",   "-XX:MaxRAMPercentage=75.0",   "-XX:+UseG1GC",   "-Djava.security.egd=file:/dev/./urandom",   "-jar", "app.jar"]

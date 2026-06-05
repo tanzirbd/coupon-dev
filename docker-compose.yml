@@ -181,7 +181,7 @@ services:
     build:
       context: .
       dockerfile: validation-service/Dockerfile
-    # NOTE: No container_name here — Docker Compose auto-names replicas.
+    # NOTE: No container_name here - Docker Compose auto-names replicas.
     # For local dev we run a single instance; set VALIDATION_REPLICAS=2 in prod.
     ports:
       - "8083:8083"

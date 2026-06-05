@@ -7,18 +7,32 @@ on:
     branches: [ main ]
 
 env:
-  JAVA_VERSION: '17'
+  JAVA_VERSION: "17"
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ${{ github.repository_owner }}/coupon-platform
 
 jobs:
 
-  # ─── Build and Test ──────────────────────────────────────────────────────────
+  # Build and Test
   build-test:
     name: Build & Test
     runs-on: ubuntu-latest
 
     services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres123
+          POSTGRES_DB: coupondb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
       redis:
         image: redis:7-alpine
         ports:
@@ -37,36 +51,36 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-          cache: 'maven'
+          distribution: temurin
+          cache: maven
 
-      - name: Build all modules (skip integration tests)
-        run: mvn clean compile -B -pl !analytics-service,!notification-service
+      - name: Build all modules
+        run: mvn clean compile -B
 
       - name: Run unit tests
         run: |
-          mvn test -B \
-            -pl user-service,coupon-service,validation-service \
-            -Dspring.profiles.active=h2 \
-            -Dspring.kafka.bootstrap-servers=localhost:9092
+          mvn test -B             -pl user-service,coupon-service,validation-service,analytics-service,notification-service             -Dmaven.test.skip=false             -Dspring.kafka.bootstrap-servers=localhost:9092
         env:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           JWT_SECRET: test-secret-key-must-be-at-least-256-bits-long-for-hs256
+          DB_HOST: localhost
+          DB_USER: postgres
+          DB_PASS: postgres123
 
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-reports
-          path: '**/target/surefire-reports/*.xml'
+          path: "**/target/surefire-reports/*.xml"
 
-  # ─── Docker Build & Push ─────────────────────────────────────────────────────
+  # Docker Build and Push
   docker-build:
     name: Docker Build & Push
     runs-on: ubuntu-latest
     needs: build-test
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == "refs/heads/main"
 
     strategy:
       matrix:
@@ -86,19 +100,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
-          cache: 'maven'
-
-      - name: Copy Dockerfile to service
-        run: cp Dockerfile.template ${{ matrix.service }}/Dockerfile
-
-      - name: Build service JAR
-        run: mvn package -DskipTests -B -pl ${{ matrix.service }}
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -120,12 +121,16 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./${{ matrix.service }}
+          # Context is project root so parent pom.xml is accessible.
+          # Each service Dockerfile uses: COPY . . then mvn -pl <service> -am clean package
+          # This is the only pattern that works for multi-module Maven projects.
+          context: .
+          dockerfile: ${{ matrix.service }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  # ─── Security Scan ───────────────────────────────────────────────────────────
+  # Security Scan
   security-scan:
     name: Security Scan (Trivy)
     runs-on: ubuntu-latest
@@ -138,8 +143,8 @@ jobs:
       - name: Run Trivy vulnerability scan
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'table'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'   # Don't fail on vulnerabilities in CI yet — report only
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "0"
