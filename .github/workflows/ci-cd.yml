@@ -125,7 +125,7 @@ jobs:
           # Each service Dockerfile uses: COPY . . then mvn -pl <service> -am clean package
           # This is the only pattern that works for multi-module Maven projects.
           context: .
-          dockerfile: ${{ matrix.service }}/Dockerfile
+          file: ${{ matrix.service }}/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
