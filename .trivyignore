@@ -1,0 +1,3 @@
+# Skip generated/vendor files that cause Trivy semaphore issues
+**/target/**
+**/.mvn/**
